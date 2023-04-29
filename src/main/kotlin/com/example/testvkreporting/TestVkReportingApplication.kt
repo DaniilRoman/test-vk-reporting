@@ -1,44 +1,61 @@
 package com.example.testvkreporting
 
+import com.example.testvkreporting.helpers.DbUtils
+import com.example.testvkreporting.helpers.MemeImage
+import com.example.testvkreporting.helpers.MemeImageDto
+import com.example.testvkreporting.helpers.VkUtils
 import com.vk.api.sdk.client.TransportClient
 import com.vk.api.sdk.client.VkApiClient
 import com.vk.api.sdk.client.actors.UserActor
 import com.vk.api.sdk.httpclient.HttpTransportClient
-import java.io.File
+import kotlinx.coroutines.runBlocking
+import mu.KotlinLogging
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.transactions.transaction
 
-class TestClass
 
-fun main() {
-    val userId = Integer.valueOf(System.getenv("VK_USER_ID"))
-    val groupId = Integer.valueOf(System.getenv("VK_GROUP_ID"))
-    val accessToken = System.getenv("VK_ACCESS_TOKEN")
+val log = KotlinLogging.logger {}
 
-    val pictureAsBytes = TestClass::class.java.getResourceAsStream("/test.png")!!.readAllBytes()
-    val testPictureFile: File = File.createTempFile("test", ".png")
-    testPictureFile.writeBytes(pictureAsBytes)
+val userId = Integer.valueOf(System.getenv("VK_USER_ID"))
+val groupId = Integer.valueOf(System.getenv("VK_GROUP_ID"))
+val accessToken = System.getenv("VK_ACCESS_TOKEN")!!
+
+val dbUrl = System.getenv("DB_URL")!!
+val dbUsername = System.getenv("DB_USERNAME")!!
+val dbPassword = System.getenv("DB_PASSWORD")!!
+
+fun main() = runBlocking {
+    log.info { "======== Start reposting ========" }
+    Database.connect(
+        url =dbUrl,
+        user = dbUsername,
+        password = dbPassword,
+        driver = "org.postgresql.Driver")
+
+    val memeFiles: List<MemeImageDto> = getLatestMemeFiles()
+    if (memeFiles.isEmpty()) {
+        log.info { "Nothing to publish" }
+        return@runBlocking
+    }
 
     val transportClient: TransportClient = HttpTransportClient()
     val vk = VkApiClient(transportClient)
     val actor = UserActor(userId, accessToken)
 
-
-    val serverResponse = vk.photos().getWallUploadServer(actor).execute()
-    val uploadResponse = vk.upload().photoWall(serverResponse.uploadUrl.toString(), testPictureFile).execute()
-    val photoList = vk.photos().saveWallPhoto(actor, uploadResponse.photo)
-        .server(uploadResponse.server)
-        .hash(uploadResponse.hash)
-        .execute()
-
-    val photo = photoList[0]
-    val attachId = "photo" + photo.ownerId + "_" + photo.id
-    val postResponse = vk.wall().post(actor)
-        .ownerId(groupId)
-        .fromGroup(true)
-        .attachments(attachId)
-        .execute()
-
-    println("+++++++++++++++++++++++++++++")
-    println(postResponse)
+    memeFiles.forEach { memeFile ->
+        val photoList = VkUtils.uploadPhotoToVk(vk, actor, memeFile.image)
+        val postResponse = VkUtils.postPhotoToChannel(photoList, vk, actor, groupId)
+        log.info { "Successfully reposted image with file id ${memeFile.id} and response post id $postResponse" }
+    }
+    log.info("======== Done reposting ========")
 }
 
-
+private fun getLatestMemeFiles(): List<MemeImageDto> = transaction {
+    val sql = """
+                select image.file_id, file 
+                from meme join image on meme.file_id = image.file_id
+                         where published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '1 hour')
+                """.trimIndent()
+    val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
+    return@transaction DbUtils.saveFileAndConvertToDto(memeImages)
+}

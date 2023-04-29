@@ -2,6 +2,8 @@ name: Build Gradle project
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 30 5-22/1 * * *'
 
 jobs:
   build-gradle-project:
@@ -23,3 +25,7 @@ jobs:
           VK_USER_ID: ${{ secrets.VK_USER_ID }}
           VK_GROUP_ID: ${{ secrets.VK_GROUP_ID }}
           VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
+
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}

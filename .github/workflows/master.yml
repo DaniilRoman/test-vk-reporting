@@ -3,7 +3,7 @@ name: Build Gradle project
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 30 5-22/1 * * *'
+    - cron: '30 5-22/1 * * *'
 
 jobs:
   build-gradle-project:

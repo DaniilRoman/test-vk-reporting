@@ -54,7 +54,7 @@ private fun getLatestMemeFiles(): List<MemeImageDto> = transaction {
     val sql = """
                 select image.file_id, file 
                 from meme join image on meme.file_id = image.file_id
-                         where published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '3 hour')
+                         where published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '1 hour')
                 """.trimIndent()
     val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
     return@transaction DbUtils.saveFileAndConvertToDto(memeImages)

@@ -1,4 +1,4 @@
-name: Build Gradle project
+name: Re-post to VK
 
 on:
   workflow_dispatch:

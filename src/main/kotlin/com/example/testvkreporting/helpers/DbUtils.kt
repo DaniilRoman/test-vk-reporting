@@ -20,7 +20,7 @@ class DbUtils {
             return memeImages.map { memeImage ->
                 val testPictureFile: File = File.createTempFile(memeImage.id, ".png")
                 testPictureFile.writeBytes(memeImage.image)
-                MemeImageDto(memeImage.id, testPictureFile)
+                MemeImageDto(memeImage.id, testPictureFile, memeImage.published)
             }
         }
     }

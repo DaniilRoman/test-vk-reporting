@@ -11,6 +11,8 @@ import com.vk.api.sdk.httpclient.HttpTransportClient
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.Instant
+import java.time.ZoneOffset
 
 
 val log = KotlinLogging.logger {}
@@ -44,16 +46,17 @@ fun main() {
     memeFiles.forEach { memeFile ->
         val photoList = VkUtils.uploadPhotoToVk(vk, actor, memeFile.image)
         val postResponse = VkUtils.postPhotoToChannel(photoList, vk, actor, groupId)
-        log.info { "Successfully reposted image with file id `${memeFile.id}` and response $postResponse" }
+        log.info { "Successfully reposted image with file id `${memeFile.id}` published at ${memeFile.published} and got response $postResponse" }
     }
     log.info("======== Done reposting ========")
 }
 
 private fun getLatestMemeFiles(): List<MemeImageDto> = transaction {
+    val checkInternalInMinutes = Instant.now().atZone(ZoneOffset.UTC).minute + 5
     val sql = """
-                select image.file_id, file 
+                select image.file_id, file, meme.published 
                 from meme join image on meme.file_id = image.file_id
-                         where published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '1 hour')
+                         where published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '$checkInternalInMinutes minute')
                 """.trimIndent()
     val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
     return@transaction DbUtils.saveFileAndConvertToDto(memeImages)

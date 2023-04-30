@@ -8,7 +8,6 @@ import com.vk.api.sdk.client.TransportClient
 import com.vk.api.sdk.client.VkApiClient
 import com.vk.api.sdk.client.actors.UserActor
 import com.vk.api.sdk.httpclient.HttpTransportClient
-import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -24,7 +23,7 @@ val dbUrl = System.getenv("DB_URL")!!
 val dbUsername = System.getenv("DB_USERNAME")!!
 val dbPassword = System.getenv("DB_PASSWORD")!!
 
-fun main() = runBlocking {
+fun main() {
     log.info { "======== Start reposting ========" }
     Database.connect(
         url =dbUrl,
@@ -35,7 +34,7 @@ fun main() = runBlocking {
     val memeFiles: List<MemeImageDto> = getLatestMemeFiles()
     if (memeFiles.isEmpty()) {
         log.info { "Nothing to publish" }
-        return@runBlocking
+        return
     }
 
     val transportClient: TransportClient = HttpTransportClient()
@@ -45,7 +44,7 @@ fun main() = runBlocking {
     memeFiles.forEach { memeFile ->
         val photoList = VkUtils.uploadPhotoToVk(vk, actor, memeFile.image)
         val postResponse = VkUtils.postPhotoToChannel(photoList, vk, actor, groupId)
-        log.info { "Successfully reposted image with file id ${memeFile.id} and response post id $postResponse" }
+        log.info { "Successfully reposted image with file id `${memeFile.id}` and response $postResponse" }
     }
     log.info("======== Done reposting ========")
 }

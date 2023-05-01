@@ -60,6 +60,7 @@ private fun getLatestMemeFiles(): List<MemeImageDto> = transaction {
 
 private fun restoreOldMeme(): List<MemeImageDto> {
     val currentCounter = getOldMemeRestoreCounter()
+    log.info { "Restoring old meme number $currentCounter" }
     return getOldMemeFileToRestore(currentCounter)
 }
 

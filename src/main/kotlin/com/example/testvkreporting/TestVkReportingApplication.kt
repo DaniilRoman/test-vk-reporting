@@ -33,16 +33,12 @@ fun main() {
         password = dbPassword,
         driver = "org.postgresql.Driver")
 
-    val memeFiles: List<MemeImageDto> = getLatestMemeFiles()
-    if (memeFiles.isEmpty()) {
-        log.info { "Nothing to publish" }
-        return
-    }
-
     val transportClient: TransportClient = HttpTransportClient()
     val vk = VkApiClient(transportClient)
     val actor = UserActor(userId, accessToken)
 
+
+    val memeFiles: List<MemeImageDto> = getLatestMemeFiles().let { it.ifEmpty { restoreOldMeme() } }
     memeFiles.forEach { memeFile ->
         val photoList = VkUtils.uploadPhotoToVk(vk, actor, memeFile.image)
         val postResponse = VkUtils.postPhotoToChannel(photoList, vk, actor, groupId)
@@ -60,4 +56,27 @@ private fun getLatestMemeFiles(): List<MemeImageDto> = transaction {
                 """.trimIndent()
     val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
     return@transaction DbUtils.saveFileAndConvertToDto(memeImages)
+}
+
+private fun restoreOldMeme(): List<MemeImageDto> {
+    val currentCounter = getOldMemeRestoreCounter()
+    return getOldMemeFileToRestore(currentCounter)
+}
+
+private fun getOldMemeFileToRestore(counter: Int): List<MemeImageDto> = transaction {
+    val sql = """
+                select image.file_id, file, meme.published, meme.created
+                    from meme join image on meme.file_id = image.file_id
+                    where meme.created < TO_DATE('2023-04-29','YYYY-MM-DD')
+                    order by meme.created desc limit 1 offset $counter;
+                """.trimIndent()
+    val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
+    return@transaction DbUtils.saveFileAndConvertToDto(memeImages)
+}
+
+private fun getOldMemeRestoreCounter(): Int = transaction {
+    val sql = """
+                SELECT nextval('vk_meme_restore_sequence');
+                """.trimIndent()
+    return@transaction DbUtils.executeAndTransform(sql) { rs -> rs.getInt("nextval") }.first()
 }

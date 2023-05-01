@@ -3,7 +3,7 @@ name: Re-post to VK
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 5-22/1 * * *'
+    - cron: '2 5-22/1 * * *'
 
 jobs:
   build-gradle-project:

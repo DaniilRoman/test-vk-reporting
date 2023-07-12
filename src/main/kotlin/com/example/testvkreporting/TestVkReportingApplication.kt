@@ -52,7 +52,7 @@ private fun getLatestMemeFiles(): List<MemeImageDto> = transaction {
     val sql = """
                 select image.file_id, file, meme.published 
                 from meme join image on meme.file_id = image.file_id
-                         where published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '$checkInternalInMinutes minute')
+                         where meme.channel_message_id is NOT NULL and published >=(date_trunc('hour',NOW()::timestamp) - INTERVAL '$checkInternalInMinutes minute')
                 """.trimIndent()
     val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
     return@transaction DbUtils.saveFileAndConvertToDto(memeImages)
@@ -68,7 +68,7 @@ private fun getOldMemeFileToRestore(counter: Int): List<MemeImageDto> = transact
     val sql = """
                 select image.file_id, file, meme.published, meme.created
                     from meme join image on meme.file_id = image.file_id
-                    where meme.created < TO_DATE('2023-04-29','YYYY-MM-DD')
+                    where meme.channel_message_id is NOT NULL and meme.created < TO_DATE('2023-04-29','YYYY-MM-DD')
                     order by meme.created desc limit 1 offset $counter;
                 """.trimIndent()
     val memeImages = DbUtils.executeAndTransform(sql) { rs -> MemeImage.create(rs) }
